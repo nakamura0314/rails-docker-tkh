@@ -1,0 +1,32 @@
+version: '3'
+#この下にコンテナを定義
+services:
+  #コンテナ、サービス
+  db:
+    image: mysql:8.0
+    #mysql:8.0から認証形式が変わっているので、それの設定
+    command: --default-authentication-plugin=mysql_native_password
+    #ローカルディレクトリ(左)とdockerのディレクトリ(右)を同期する
+    volumes:
+      - ./src/db/mysql_data:/var/lib/mysql
+    #環境変数の設定
+    #mysqlはパスワードを設定しないとエラーになる
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+  #コンテナ、サービス
+  web:
+    #.(ドット)とすることで、同じ階層にあるdockerファイルを参照するということ
+    build: .
+    #railsのs(サーバー)を起動して、その際に、ポートは3000番ポートで、
+    #IPアドレスのバインドはどこでもいいようにする
+    command: bundle exec rails s -p 3000 -b '0.0.0.0'
+    volumes:
+      - ./src:/app
+    #ローカルの3000番ポートをdockerの3000番ポートに接続している
+    ports:
+      - "3000:3000"
+    #depends_onは、依存関係を示す
+    #webサービスはdbサービスに依存しているということを示す
+    #rails側からmysqlに接続するときに、接続先のIPアドレスのところをdbとするだけでいい
+    depends_on:
+      - db
