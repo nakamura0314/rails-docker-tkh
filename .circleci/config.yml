@@ -1,0 +1,66 @@
+version: 2.1
+#色んな人が定義したjobをシェアできるようにするための設定
+orbs:
+  ruby: circleci/ruby@1.1.2
+
+#buildとtestのjobを定義
+jobs:
+  build:
+    docker:
+      #imageを指定
+      - image: circleci/ruby:2.7
+    #作業場所、ここはgithubのリポジトリ名と同じにする
+    #gitリポジトリからソースコードをコピー
+    working_directory: ~/rails-docker-tkh/src
+    #実際の動作をするjobを書く
+    #
+    steps:
+      #gitリポジトリをコピーする
+      - checkout:
+          path: ~/rails-docker-tkh
+      #orbsのbundle install方法
+      - ruby/install-deps
+
+  #circleciの実行環境
+  test:
+    docker:
+      - image: circleci/ruby:2.7
+      - image: circle/mysql:5.5
+        #src/config/database.yml参照
+        #database用の環境変数
+        environment:
+          MYSQL_ROOT/PASSWORD: password
+          MYSQL_DATABASE: app_test
+          MYSQL_USER: root
+    #testjobの環境変数
+    environment:
+      BUNDLE_JOBS: "3"
+      BUNDLE_RETRY: "3"
+      APP_DATABASE_HOST: "127.0.0.1"
+      RAILS_ENV: test
+    #作業場所
+    working_directory: ~/rails-docker-tkh/src
+    steps:
+      #gitのリポジトリからソースコードをcheckout
+      - checkout:
+          path: ~/rails-docker-tkh
+      #bundle install
+      - ruby/install-deps
+      #bundle install後の操作
+      - run:
+          name: Database setup
+          command: bundle exec rails db:migrate
+      #testの実行
+      - run:
+          name: test
+          command: bundle exec rake test
+
+workflows:
+  version: 2
+  build_and_test:
+    #jobsの実行順序
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
