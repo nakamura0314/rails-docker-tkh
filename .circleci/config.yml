@@ -2,10 +2,12 @@ version: 2.1
 #色んな人が定義したjobをシェアできるようにするための設定
 orbs:
   ruby: circleci/ruby@1.1.2
+  heroku: circleci/heroku@1.2.3
 
 #buildとtestのjobを定義
 jobs:
   build:
+    #実行環境
     docker:
       #imageを指定
       - image: circleci/ruby:2.7
@@ -55,12 +57,46 @@ jobs:
           name: test
           command: bundle exec rake test
 
+  deploy:
+    #実行環境
+    docker:
+      - image: cirleci/ruby:2.7
+    steps:
+      - checkout
+      #dockerコマンドを使うことができる
+      - setup_remote_docker:
+          version: 19.03.13
+      #orbsのherokuのおかげで、ここは下記の記述だけでherokuをインストールすることができる
+      - heroku/install
+      #ここから実行コマンド
+      - run:
+          name: heroku login
+          command: heroku container:login
+      - run:
+          name: push docker image
+          command: heroku container:push web -a $HEROKU_APP_NAME
+      - run:
+          name: release docker image
+          command: heroku container:release web -a $HEROKU_APP_NAME
+      - run:
+          name: database setup
+          command: heroku run bundle exec rake db:migrate RAILS_ENV=production -a $HEROKU_APP_NAME
+
 workflows:
   version: 2
-  build_and_test:
+  build_test_and_deploy:
     #jobsの実行順序
     jobs:
       - build
       - test:
           requires:
             - build
+      - deploy:
+          requires:
+            - test
+          #buildとtestはpushされるたびに実行されるが、
+          #deployのjobsはmain branchに変更があった時だけ、
+          #つまりmain branchにマージされた時にだけdeployが実行される
+          filters:
+            branches:
+              only: main
