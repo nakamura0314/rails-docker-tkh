@@ -60,7 +60,7 @@ jobs:
   deploy:
     #実行環境
     docker:
-      - image: cirleci/ruby:2.7
+      - image: circleci/ruby:2.7
     steps:
       - checkout
       #dockerコマンドを使うことができる
